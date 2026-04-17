@@ -8,7 +8,7 @@ const fs = require('fs');
 const app = express();
 app.use(express.json({ limit: '5mb' }));
 
-// let SIDECAR_TOKEN = "63a37ad3b434ef125e6f2daa80876f0d5f657e65707518b4729ebeb33cc62221";
+// let SIDECAR_TOKEN = "";
 // 1. SECURE TOKEN (Set this in Render Env Vars)
 const AUTH_TOKEN = process.env.SIDECAR_TOKEN || 'default-local-token';
 

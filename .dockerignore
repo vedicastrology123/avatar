@@ -4,6 +4,7 @@ npm-debug.log
 
 # Ignore Java build artifacts
 target/
+renderer/
 *.class
 
 # Ignore OS files

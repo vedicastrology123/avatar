@@ -1,21 +1,22 @@
-do git.txt commands
-
 start docker desktop
-docker rm -f vedic-live
+docker rm -f avatar-web 
 
-docker build --no-cache -t vedic-final .
+docker build --network=host -t avatar-final .
 
-docker run -d -p 8080:8080 --name vedic-live vedic-final
-docker logs -f -t (docker ps --filter "name=vedic-live" --format "{{.ID}}")
+ocker run -d --name avatar-web -p 8080:8080 --env-file .env avatar-final
+ docker logs -f -t (docker ps --filter "name=avatar-web" --format "{{.ID}}")
 // call
 http://localhost:8080/
-
-docker build -t vedic-final .
 
 
 https://api.geoapify.com/v1/geocode/reverse?lat=13&lon=81&format=json&include_timezone=true&apiKey=5b52e5d78d054706bc59249d27bb666d
 
-https://horoscope-oy3s.onrender.com/birthchart.jsp?firstName=name&lastName=&chart=0&date=dob&time=tob&countryid=Afghanistan&stateid=Badakhshan&cityid=Ashk%C4%81sham&countryLatitude=33.00000000&countryLongitude=65.00000000&countryGmtOffsetName=UTC%2B04%3A30&countryGmtOffset=4.5&countryDstOffset=0&cityLatitude=36.68333000&cityLongitude=71.53333000&cityGmtOffsetName=Asia%2FKabul&cityGmtOffset=4.5&cityDstOffset=4.5
+https://horoscope-oy3s.onrender.com/avatar.jsp?firstName=name&lastName=&chart=0&date=dob&time=tob&countryid=Afghanistan&stateid=Badakhshan&cityid=Ashk%C4%81sham&countryLatitude=33.00000000&countryLongitude=65.00000000&countryGmtOffsetName=UTC%2B04%3A30&countryGmtOffset=4.5&countryDstOffset=0&cityLatitude=36.68333000&cityLongitude=71.53333000&cityGmtOffsetName=Asia%2FKabul&cityGmtOffset=4.5&cityDstOffset=4.5
 
 
 python -m http.server 8000
+
+git add .
+git commit -m "Message"
+git push -u origin main
+git status
