@@ -40,7 +40,7 @@ RUN chmod -R 755 /usr/local/tomcat/swiseph_data
 
 RUN rm -rf /usr/local/tomcat/webapps/ROOT/
 COPY --from=build /app/target/avatar.war /usr/local/tomcat/webapps/ROOT.war
-RUN chmod 644 /usr/local/tomcat/webapps/ROOT.war
+RUN chmod 755 /usr/local/tomcat/webapps/ROOT.war
 
 EXPOSE 8080
 CMD ["catalina.sh", "run"]

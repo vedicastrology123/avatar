@@ -45,8 +45,7 @@
             <p class="text-slate-500 mt-1 text-lg">Birth Horoscope & Kundali Generation</p>
         </header>
 
-        <form id="birthchartInput" name="birthchartInput" action="avatar.jsp" method="post" class="space-y-6">
-            
+        <form id="birthchartInput" name="birthchartInput" action="avatar.jsp" method="post" enctype="application/x-www-form-urlencoded" class="space-y-6">
             <input type="hidden" id="userTz" name="userTz">
             <input type="hidden" id="chart" name="chart" value="0">
             <input type="hidden" id="lastName" name="lastName" value="- Birth Horoscope">

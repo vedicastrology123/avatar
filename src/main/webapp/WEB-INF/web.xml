@@ -39,7 +39,11 @@
 		<url-pattern>/avatar.jsp</url-pattern>
 		<dispatcher>REQUEST</dispatcher>
 		<dispatcher>FORWARD</dispatcher>
-	</filter-mapping>	
+	</filter-mapping>
+	<servlet-mapping>
+    	<servlet-name>jsp</servlet-name>
+    	<url-pattern>*.jsp</url-pattern>
+	</servlet-mapping>	
 	<welcome-file-list>
         <welcome-file>index.jsp</welcome-file>
     </welcome-file-list>
