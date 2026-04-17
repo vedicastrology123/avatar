@@ -1,0 +1,89 @@
+mvn archetype:generate "-DgroupId=com.avatar" "-DartifactId=avatar" "-DarchetypeArtifactId=maven-archetype-webapp" "-DinteractiveMode=false"
+
+cd avatar
+
+add inpom
+  <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <version>6.1.0</version>
+      <scope>provided</scope>
+  </dependency>
+
+docker build -t avatar .
+
+docker run -d -p 9090:8080 --name my-app my-tomcat-image
+
+run http://localhost:9000/
+
+docker logs -f -t (docker ps --filter "name=avatar" --format "{{.ID}}")
+
+docker stop webapp-container
+
+install docker-desktop to build to test on linux
+
+
+docker rm -f avatar-web
+docker build --network=host -t avatar-final .
+OR 
+docker build --network=host --no-cache -t avatar-final .
+docker run -d --name avatar-web -p 8080:8080 avatar-final 
+docker logs -f -t (docker ps --filter "name=avatar-web" --format "{{.ID}}")
+
+
+docker exec -it avatar-web curl -v -X POST -H "X-Sidecar-Token: 63a37ad3b434ef125e6f2daa80876f0d5f657e65707518b4729ebeb33cc62221" -H "Content-Type: application/json" -d "{\"html\": \"<h1>Test</h1>\"}" http://127.0.0.1:3000/render
+
+
+
+wsl --install -d Ubuntu
+
+# Update the local package manager
+sudo apt update
+
+# Install Node.js and NPM
+sudo apt install -y nodejs npm
+
+# Verify they are alive
+node -v
+npm -v
+
+# Go to your project (example path)
+cd /mnt/c/Users/YourName/Documents/astrogram/renderer
+
+# Install and start the renderer
+npm install
+node index.js
+
+# Add the Adoptium GPG key and repository
+sudo mkdir -p /etc/apt/keyrings
+wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | sudo tee /etc/apt/keyrings/adoptium.asc
+
+echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/adoptium.list
+
+# Install Temurin 17
+sudo apt update
+sudo apt install -y temurin-17-jdk
+
+# Verify
+java -version
+
+
+# Download Maven 3.9.6
+wget https://archive.apache.org/dist/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.tar.gz
+
+# Extract and Move
+tar -xvf apache-maven-3.9.6-bin.tar.gz
+sudo mv apache-maven-3.9.6 /opt/maven
+
+# Set the Path (Serial logic: make it permanent)
+echo "export PATH=/opt/maven/bin:\$PATH" >> ~/.bashrc
+source ~/.bashrc
+
+# Verify
+mvn -version
+
+
+mvn clean package
+
+
+node index.js

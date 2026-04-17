@@ -1,0 +1,10 @@
+<configuration>
+    <logger name="com.openhtmltopdf" level="WARN"/>
+    <logger name="org.apache.pdfbox" level="ERROR"/>
+    <logger name="jakarta.mail" level="WARN"/>
+    <logger name="com.sun.mail" level="WARN"/>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>

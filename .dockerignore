@@ -1,0 +1,12 @@
+# Ignore local Node binaries
+renderer/node_modules/
+npm-debug.log
+
+# Ignore Java build artifacts
+target/
+*.class
+
+# Ignore OS files
+.git
+.DS_Store
+.m2

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+  </head>
+  <body>
+    <p>
+      Hi ${firstName}, <br/>  
+      Horoscope Predictions will be done as detailed below.<br/>
+      Your reference id for further communications is <b>"${registration}"</b>.<br/>
+      You can <a href="https://stevehora.com/horoscope-predictions">view a sample predictions here</a>. <br/>
+      <ul>
+        <li><b>Chat to get predictions. <a href="https://support.google.com/chat/answer/7653601?hl=en&co=GENIE.Platform%3DDesktop&sjid=8934146319108235493-NC">Enable 'Google Chat' - Instructions.</a>.</li>
+        <li>Will give accurate analysis using Lagna and Varga charts as well.</li>
+        <li>And timing of the life events of your questions</li>
+        <li>Solutions as per the karma of your chart.</li>
+        <li>Psychological advice, Astrological remedies, and other solutions.</li>
+        <li>Analyze Planetary combinations (Yogas) present for that question asked, combinations and Drishti of other planets will be taken into account</li>
+        <li>Gems and color recommendations and Karmic solutions.</li>
+      </ul>
+      <p>Please find <b>your birth horoscrope</b> below:</p>
+      <div style='border: 1px solid #ddd; padding: 10px;'>
+           "{{CHART_IMAGE}}"
+      </div>
+      As always, assuring you of accurate, genuine astrological consultation.<br/>
+      Regards,<br/>
+      Steve
+  </p>
+
+Your personal data is collected to prepare a precise Vedic birth chart (Kundali), calculations and accurate prediction.<br/>
+Your privacy is of great importance to me.<br/>
+Please read the <a href="https://stevehora.com/articles/privacy">Terms & Privacy</a> of my website.<br/>
+    <p>
+    <table style="border-radius:2px;margin:2em 0px 3em;min-width:400px;max-width:800px; border:1px solid rgb(238,238,238);border-collapse:separate;border-spacing:1px" cellspacing="0" cellpadding="10" border="0">
+<tbody>
+	<tr style="background:rgb(249,249,249)">
+		<td style="font-weight:bold;width:180px">Name: </td>
+		<td>${firstName}</td>
+	</tr>
+	<tr style="background:rgb(251,251,251)">
+		<td style="font-weight:bold;width:180px">Date of Birth: </td>
+		<td>${date}</td>
+	</tr>
+	<tr style="background:rgb(249,249,249)">
+		<td style="font-weight:bold;width:180px">Time of Birth: </td>
+		<td>${time}</td>
+	</tr>
+	<tr style="background:rgb(251,251,251)">
+		<td style="font-weight:bold;width:180px">Place of Birth - Town / City, State, Country: </td>
+		<td>${city}, ${state}, ${country}</td>
+	</tr>
+  <tr style="background:rgb(251,251,251)">
+		<td style="font-weight:bold;width:180px">Life questions for predictions: </td>
+		<td>${questions}</td>
+	</tr>
+	<tr>
+  <tr style="background:rgb(251,251,251)">
+		<td style="font-weight:bold;width:180px">Current Resident - Country: </td>
+		<td>${residency}</td>
+	</tr>  
+</tbody>
+</table>
+</p>
+  </body>
+</html>
