@@ -21,7 +21,7 @@
 		<filter-class>org.apache.catalina.filters.CorsFilter</filter-class>
 		<init-param>
 			<param-name>cors.allowed.origins</param-name>
-			<param-value>https://avatar-pp4i.onrender.com/, http://localhost:8080</param-value>
+			<param-value>https://avatar-pp4i.onrender.com, http://localhost:8080</param-value>
 		</init-param>
 	</filter>
 	<filter-mapping>
@@ -31,7 +31,7 @@
 	<filter>
 		<filter-name>CaptureFilter</filter-name>
 		<filter-class>jyotish.main.HtmlCaptureFilter</filter-class>
-		<async-supported>false</async-supported>
+		<async-supported>true</async-supported>
 	</filter>
 
 	<filter-mapping>
