@@ -41,6 +41,8 @@ RUN chmod -R 755 /usr/local/tomcat/swiseph_data
 
 RUN rm -rf /usr/local/tomcat/webapps/ROOT/
 COPY --from=build /app/target/avatar.war /usr/local/tomcat/webapps/ROOT.war
+# Ensure the tomcat user owns the webapps directory
+RUN chmod -R 755 /usr/local/tomcat/webapps/
 RUN chmod 755 /usr/local/tomcat/webapps/ROOT.war
 
 ENV CATALINA_OPTS="-Dport.shutdown=-1"
