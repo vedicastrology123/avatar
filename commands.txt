@@ -3,8 +3,8 @@ docker rm -f avatar-web
 
 docker build --network=host -t avatar-final .
 
-ocker run -d --name avatar-web -p 8080:8080 --env-file .env avatar-final
- docker logs -f -t (docker ps --filter "name=avatar-web" --format "{{.ID}}")
+docker run -d --name avatar-web -p 8080:8080 --env-file .env avatar-final
+docker logs -f -t $(docker ps --filter "name=avatar-web" --format "{{.ID}}")
 // call
 http://localhost:8080/
 

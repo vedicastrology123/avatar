@@ -621,6 +621,12 @@
         </div>
     </div>
 <script>
+    const overlay = document.getElementById('loading-overlay');
+    overlay.style.setProperty('display', 'flex', 'important');
+    overlay.classList.remove('hidden');
+</script>
+
+<script>
     async function downloadImage() {
         const proceed = confirm("Would you like to generate and download the horoscope image?");
         if (!proceed) return;
@@ -668,18 +674,12 @@
     }
 </script>
 
-<script>
-   const overlay = document.getElementById('loading-overlay');
-   overlay.style.setProperty('display', 'flex', 'important');
-   overlay.classList.remove('hidden');
-</script>
-
-<%-- <%@ page import="java.net.http.HttpClient" %>
+<%@ page import="java.net.http.HttpClient" %>
 <%@ page import="java.net.http.HttpRequest" %>
 <%@ page import="java.net.http.HttpResponse" %>
 <%@ page import="java.net.URI" %>
 <%@ page import="com.fasterxml.jackson.databind.ObjectMapper" %> --%>
-<%-- 
+ 
 <%!
     public byte[] processAndRender(String finalHtml) throws Exception {
         // 2. Wrap in JSON for the Sidecar
@@ -687,7 +687,8 @@
         String jsonBody = mapper.writeValueAsString(Map.of("html", finalHtml));
 
         // 3. Push to the Local Satori Sidecar
-        String token = System.getenv("SIDECAR_TOKEN");
+        // String token = System.getenv("SIDECAR_TOKEN");
+        String token = "ibh7JSXJPdWu4DBq";
         HttpClient client = HttpClient.newHttpClient();
         
         HttpRequest request = HttpRequest.newBuilder()
@@ -716,7 +717,7 @@
         }
         return imageBytes;
     }
-%> --%>
+%>
 
 <%
     out.flush();
@@ -730,7 +731,7 @@
 
         capturedHtml = myWrapper.getCapturedHtml().toString().trim();
 
-        if (capturedHtml != null&& !capturedHtml.trim().isEmpty()) {
+        if (capturedHtml != null && !capturedHtml.trim().isEmpty()) {
             System.out.println("Verified: HTML written to screen block.");
         } else {
             out.println("<b>Debug: capturedHtml was NULL at time of rendering.</b>");
@@ -738,16 +739,16 @@
     } else {
         System.err.println("Error: TeeResponseWrapper not found in request attributes.");
     }
-    // String base64Html = java.util.Base64.getEncoder().encodeToString(capturedHtml.getBytes(StandardCharsets.UTF_8));
-    // byte[] imageBytes = processAndRender(capturedHtml);
-    // if (email != null && !email.isEmpty()) {
-    //     jyotish.main.SendUserEmail emailer = new jyotish.main.SendUserEmail();
-    //     // System.out.println("Email sent out to " + firstName);
-    //     emailer.generateAndEmail(email, imageBytes, firstName, lastName, date, time, city, state, country, questions, residency);
-    //     success = "Success";
-    // }
+    String base64Html = java.util.Base64.getEncoder().encodeToString(capturedHtml.getBytes(StandardCharsets.UTF_8));
+    byte[] imageBytes = processAndRender(capturedHtml);
+    if (email != null && !email.isEmpty()) {
+        jyotish.main.SendUserEmail emailer = new jyotish.main.SendUserEmail();
+        System.out.println("Email sent out to " + firstName + " using satori twcss");
+        emailer.generateAndEmail(email, imageBytes, firstName, lastName, date, time, city, state, country, questions, residency);
+        success = "Success";
+    }
     
-    WebDriver driver = null;
+    /* WebDriver driver = null;
     
     try {
         WebDriverManager.chromedriver().setup();
@@ -812,7 +813,7 @@
         if (driver != null) {
             driver.quit();
         }
-    }
+    }*/
 %>
 
 <script>

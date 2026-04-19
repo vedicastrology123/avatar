@@ -1,51 +1,45 @@
-# --- Stage 1: The Builder ---
+# --- Stage 1: Build Java (Unchanged) ---
 FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
-
-# 1. Resolve dependencies first (Cached unless pom.xml changes)
 COPY pom.xml .
 COPY src/main/webapp/WEB-INF/lib ./src/main/webapp/WEB-INF/lib
 RUN mvn dependency:resolve -B
-
-# 2. Copy source and build (This is the only part that will re-run)
 COPY src ./src
 RUN mvn clean package -DskipTests
 
+# --- Stage 2: Final Image (Tomcat + Node + Satori) ---
 FROM tomcat:10.1-jdk17
-RUN sed -i 's/port="8005"/port="-1"/' /usr/local/tomcat/conf/server.xml
 
-ENV DEBIAN_FRONTEND=noninteractive
+# 1. Install Node.js
+RUN apt-get update && apt-get install -y curl && \
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN echo "Acquire::http::Pipeline-Depth 0; \n\
-Acquire::http::No-Cache true; \n\
-Acquire::BrokenProxy true;" > /etc/apt/apt.conf.d/99fixbadproxy
+# 2. Setup Node App (The Renderer)
+WORKDIR /renderer
 
-# 2. Install dependencies and Chrome 
-# (Tomcat 10.1 is Debian-based, so we use standard debian commands)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    gnupg \
-    ca-certificates && \
-    mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/keyrings/google-chrome.gpg && \
-    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update && \
-    apt-get install -y google-chrome-stable --no-install-recommends && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# Copy package files first to leverage Docker cache
+COPY renderer/package*.json ./
 
-# 4. DATA & DEPLOY
+# This will now install satori-html, resvg, etc. automatically
+RUN npm install --omit=dev
+
+# Copy the rest of the renderer code (index.js, fonts, etc.)
+COPY renderer/ .
+
+# 3. Setup Tomcat & Astrology Data
+WORKDIR /usr/local/tomcat
 RUN mkdir -p /usr/local/tomcat/swiseph_data
 COPY swiseph_data/*.se1 /usr/local/tomcat/swiseph_data/
-RUN chmod -R 755 /usr/local/tomcat/swiseph_data
-# ENV SE_PATH=/usr/local/tomcat/swiseph_data
+RUN rm -rf webapps/ROOT/
+COPY --from=build /app/target/avatar.war webapps/ROOT.war
 
-RUN rm -rf /usr/local/tomcat/webapps/ROOT/
-COPY --from=build /app/target/avatar.war /usr/local/tomcat/webapps/ROOT.war
-# Ensure the tomcat user owns the webapps directory
-RUN chmod -R 755 /usr/local/tomcat/webapps/
-RUN chmod 755 /usr/local/tomcat/webapps/ROOT.war
+# 4. Final Execution
+EXPOSE 8080 3000
 
-ENV CATALINA_OPTS="-Dport.shutdown=-1"
+# Using absolute paths for the CMD to avoid directory confusion
+# CMD ["sh", "-c", "node /renderer/index.js & catalina.sh run"]
 
-EXPOSE 8080
-CMD ["catalina.sh", "run"]
+# Change the last line to this:
+CMD ["sh", "-c", "cd /renderer && node index.js & catalina.sh run"]

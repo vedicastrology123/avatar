@@ -21,7 +21,7 @@ buildNumber.properties
 .vscode/
 
 # Project specific
-renderer/
+renderer/node_modules/
 
 # OS Specific Files
 .DS_Store

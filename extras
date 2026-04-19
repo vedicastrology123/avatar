@@ -1,0 +1,305 @@
+import fs from 'fs';
+import { html as toVNode } from 'satori-html';
+import satori from 'satori';
+import { Resvg } from '@resvg/resvg-js';
+import express from 'express';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const app = express();
+app.use(express.json({ limit: '5mb' }));
+
+const AUTH_TOKEN = "ibh7JSXJPdWu4DBq";
+
+const satoriCustomCss = `
+        .page-container {
+            display: flex;
+            flex-direction: column;
+            width: 1050px;
+            height: 1080px;
+            background-color: #ffffff;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 2. CHART GRID - CONVERTED TO FLEX */
+        .chart-grid {
+            display: flex;
+            flex-wrap: wrap;
+            width: 342px; 
+            height: 342px;
+            margin-left: auto;
+            margin-right: auto;
+            border: 1.5px solid #0f172a;
+            background-color: #ffffff;
+        }
+
+        /* Logic: 85px * 4 = 340px. 
+        We use flex-basis to mimic the 4-column grid columns */
+        .house-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 85px;
+            height: 85px;
+            flex-shrink: 0;
+            flex-grow: 0;
+            border: 0.5px solid #0f172a;
+            overflow: hidden;
+        }
+
+        /* Since Satori doesn't support grid-column spans, 
+        the 'chart-center' box must be sized as 170px (85*2) 
+        and placed correctly in your HTML order. */
+        .chart-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 170px;
+            height: 170px;
+            font-weight: 900;
+            font-size: 24px;
+            border: 0.5px solid #0f172a;
+        }
+
+        .planet-data {
+            font-size: 12px;
+            line-height: 1;
+            text-align: center;
+            color: #000000;
+        }
+
+        /* 4. THE FOOTER - Absolute positioning works in Satori */
+        .absolute-footer {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            right: 40px;
+            height: 60px;
+            background-color: #ffffff;
+            border-top: 3px solid #0f172a;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .footer-line {
+            height: 1px;
+            background-color: #e2e8f0;
+            margin-bottom: 12px;
+        }
+
+        /* 5. VISIBILITY & TABLES */
+        .hidden {
+            display: none;
+        }
+
+        /* Satori doesn't support @media print, so we force 
+        the 'export' state by default */
+        .print-ui-only {
+            display: none;
+        }
+
+        table {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        table thead th {
+            background-color: #0ea5e9;
+            color: #ffffff;
+            padding: 8px;
+            display: flex;
+        }
+
+        table td {
+            border: 1px solid #e2e8f0;
+            padding: 6px;
+            display: flex;
+        }
+
+        /* Tailwind 4 Color Mapping */
+        .bg-sky-600 { 
+            background-color: #0284c7;
+            color: #ffffff; 
+        }
+        `;
+
+// const css = (compiledCss + "\n" + satoriCustomCss).replace(/(z-index|zIndex)\s*:\s*(\d+)px/gi, '$1: $2').replace(/(flex-grow|flexGrow)\s*:\s*(\d+)px/gi, '$1: $2').replace(/!important/g, '');
+
+// Only use the styles you actually wrote for Satori
+const css = satoriCustomCss.replace(/(z-index|zIndex)\s*:\s*(\d+)px/gi, '$1: $2');
+
+app.post('/render', async (req, res) => {
+    
+    console.log("--- New Render Request ---");
+    try {
+        // Load your font (Tailwind needs a font to calculate layout)
+        const fontData = fs.readFileSync('./fonts/arial.ttf');
+
+        if (fontData.length === 0) throw new Error("Font file is empty!");
+        console.log("Font data found, size:", fontData.length);
+        
+        const token = req.headers['x-sidecar-token'];
+        if (token !== AUTH_TOKEN) return res.status(403).send('Unauthorized');
+        console.log("token found, size:", token);
+
+        const { html } = req.body;
+        const rawHtml = req.body.html;
+        const satoriHtml = prepareNakedHtml(satoriSystemStrip(rawHtml));
+        
+        let vNode;
+
+        try {
+            vNode = toVNode(satoriHtml);
+            vNode = deepCleanVNode(vNode); // Re-assign to catch root-level changes
+            if (vNode && vNode.props) {
+                vNode.props.style = {
+                    ...(vNode.props.style || {}),
+                    display: 'flex',
+                    flexDirection: 'column',
+                    width: 1200,   // Number, not "1200px"
+                    height: 1080,  // Number, not "1080px"
+                    backgroundColor: '#ffffff'
+                };
+            }
+                        
+            console.log("toVNode success");
+        } catch (e) {
+            console.log("toVNode failed:", e.message);
+            throw e;
+        }
+
+        let svg;
+        try {
+            console.log("Calling Satori engine...");
+            svg = await satori(vNode, { 
+                width: 1200, 
+                height: 1080, 
+                background: '#ffffff',
+                fonts: [{ name: 'arial', data: fontData, weight: 400 }],
+                css: css,
+            });
+            console.log("Satori success, SVG length:", svg.length);
+        } catch (e) {
+            console.log("Satori engine crashed:", e.message);
+            throw e;
+        }
+        
+        // const svgString = svg ? svg.toString() : "";
+        
+        let pngBuffer;
+        try {
+            console.log("Calling Resvg renderer...");
+            // const svgString = typeof svg === 'string' ? svg : svg.toString();
+            let svgString = svg.toString();
+svgString = svgString.replace(/z-index="(\d+)px"/g, 'z-index="$1"')
+                     .replace(/zIndex:\s*(\d+)px/g, 'zIndex: $1');
+            const resvg = new Resvg(svgString, {
+                background: '#ffffff',
+            });
+            pngBuffer = resvg.render().asPng();
+            console.log("Resvg success, PNG size:", pngBuffer.length);
+        } catch (e) {
+            console.log("Resvg/Rust panicked or crashed:", e.message);
+            throw e;
+        }
+
+        res.setHeader('Content-Type', 'image/png');
+        res.set('Content-Length', pngBuffer.length);
+        res.send(pngBuffer);
+        console.log("--- Request Complete ---");
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
+});
+
+
+function deepCleanVNode(node) {
+    if (!node || typeof node !== 'object') return node;
+
+    if (Array.isArray(node)) {
+        return node.map(child => deepCleanVNode(child));
+    }
+
+    if (node.props) {
+        const props = node.props;
+        
+        // 1. CLEAN STYLE OBJECT
+        if (props.style && typeof props.style === 'object') {
+            const s = props.style;
+            
+            // Force numeric zIndex (Kill the 50px zombie)
+            if (s.zIndex !== undefined) {
+                const val = String(s.zIndex).replace(/[^0-9-]/g, '');
+                s.zIndex = val ? parseInt(val, 10) : 0;
+            }
+
+            // THE PANIC KILLER: Force Flex and absolute stability
+if (s.display !== 'none') {
+    s.display = 'flex';
+    if (!s.flexDirection) s.flexDirection = 'column';
+    
+    // Ensure every div has at least a minimum "physical" presence
+    // Satori sometimes panics if it tries to render a 0-height element with borders
+    if (!s.width && !s.flex) s.width = '100%'; 
+}
+        }
+
+        // 2. THE NUCLEAR STEP: Delete className
+        // This stops Satori from re-injecting 50px based on Tailwind names
+        if (props.className) {
+            delete props.className;
+        }
+
+        // 3. RECURSE DEEPLY
+        if (props.children) {
+            if (Array.isArray(props.children)) {
+                props.children = props.children.map(deepCleanVNode);
+            } else if (typeof props.children === 'object') {
+                props.children = deepCleanVNode(props.children);
+            }
+        }
+    }
+    return node;
+}
+
+
+
+function satoriSystemStrip(html) {
+    return html
+        .replace(/<(script|style)\b[^>]*>([\s\S]*?)<\/\1>/gi, '')
+        .replace(/!important/g, '')
+        // Add 'camelcase' to the system-level strip
+        .replace(/\b(fixed|camelcase)\b/g, 'absolute') 
+        .replace(/position:\s*fixed/gi, 'position: absolute');
+}
+
+function prepareNakedHtml(html) {
+    if (!html) return '';
+
+    return html
+        // AGGRESSIVE Z-INDEX: Catch every variation (with/without spaces, quotes, etc.)
+        .replace(/(z-index|zIndex)\s*:\s*['"]?(\d+)px['"]?/gi, '$1: $2')
+
+        // STRIP THE REST OF THE NOISE
+        .replace(/\b(inline-block|print-ui-only|sticky|backdrop-blur-[a-z0-9-]+|animate-[a-z-]+|transition-[a-z-]+)\b/gi, '')
+        .replace(/\b(gap-\d+|space-[xy]-\d+|grid|cols-\d+|tracking-[a-z-]+)\b/gi, '')
+        .replace(/\b[a-z0-9-]+-\[[^\]]+\]/g, '')
+
+        // THE PANIC FIX: Include more tags (span, table, section) to be safe
+        .replace(/<(div|section|main|span|table)(?![^>]*style=['"])/gi, '<$1 style="display: flex; flex-direction: column;"')
+        .replace(/style=(['"])/gi, 'style=$1display: flex; flex-direction: column; ')
+
+        .replace(/\s{2,}/g, ' ')
+        .replace(/z-index:\s*(\d+)px/gi, 'z-index: $1')
+        .replace(/font-weight:\s*(\d+)px/gi, 'font-weight: $1')
+        .replace(/flex-grow:\s*(\d+)px/gi, 'flex-grow: $1')
+        .trim();
+}
+
+app.listen(3000, '0.0.0.0', () => console.log('Satori Sidecar on port 3000'));

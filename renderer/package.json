@@ -1,0 +1,19 @@
+{
+  "name": "astrogram-satori-renderer",
+  "version": "1.0.0",
+  "type": "module", 
+  "description": "Sidecar for generating Vedic charts using Satori and Tailwind 4",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "satori": "^0.10.13",
+    "satori-html": "^0.3.2",
+    "@resvg/resvg-js": "^2.6.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
