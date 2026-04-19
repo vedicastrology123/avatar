@@ -19,62 +19,44 @@ const satoriCustomCss = `
         display: flex;
         flex-direction: column;
         width: 1200px;
-        height: 1080px;
         background-color: #ffffff;
     }
+    /* Force specific chart dimensions in CSS as a backup */
     .chart-grid {
         display: flex;
+        flex-direction: row;
         flex-wrap: wrap;
-        width: 342px; 
-        height: 342px;
-        margin: 0 auto;
-        border: 1.5px solid #0f172a;
+        width: 340px; 
+        height: 340px;
+        border: 2px solid #000;
     }
     .house-box {
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
         width: 85px;
         height: 85px;
         flex-shrink: 0;
-        border: 0.5px solid #0f172a;
-    }
-    .chart-center {
-        display: flex;
+        border: 1px solid #333;
         align-items: center;
         justify-content: center;
-        width: 170px;
-        height: 170px;
-        font-weight: 900;
-        font-size: 24px;
-        border: 0.5px solid #0f172a;
     }
+    /* Force tables to behave like flex rows */
     table { display: flex; flex-direction: column; width: 100%; }
-    tr { display: flex; width: 100%; }
-    td, th { display: flex; flex: 1; padding: 4px; border: 1px solid #e2e8f0; }
+    tr { display: flex; flex-direction: row; width: 100%; }
+    td, th { display: flex; flex: 1; padding: 4px; }
 `;
+
 const cssPath = join(__dirname, 'css', 'global.css');
-// 1. Read the big Tailwind file
 const rawTailwindCss = fs.readFileSync(cssPath, 'utf8');
 
-// 2. SCRUB IT: Remove the things that make Satori/Resvg panic
 const sanitizedTailwind = rawTailwindCss
-    .replace(/!important/g, '') // Satori hates !important
-    .replace(/(z-index|zIndex)\s*:\s*(\d+)px/gi, '$1: $2') // Fix the 50px bug
-    .replace(/@media\s+print\s*\{[\s\S]*?\}/g, '') // Remove print styles
-    .replace(/column-gap:/g, 'gap:') // Satori prefers 'gap' over specific column-gap
-    .replace(/scroll-behavior:\s*smooth/g, ''); // Useless for images
+    .replace(/!important/g, '')
+    .replace(/(z-index|zIndex)\s*:\s*(\d+)px/gi, '$1: $2')
+    .replace(/@media\s+print\s*\{[\s\S]*?\}/g, '')
+    .replace(/column-gap:/g, 'gap:')
+    .replace(/scroll-behavior:\s*smooth/g, '');
 
-
-// Pre-clean the CSS string for Satori
-const cleanCss = satoriCustomCss.replace(/(z-index|zIndex)\s*:\s*(\d+)px/gi, '$1: $2');
-
-// 3. MERGE: Combine with your specific Astrology chart overrides
 const finalSatoriCss = sanitizedTailwind + "\n" + satoriCustomCss;
-// Only include the 24KB file if you actually need the utility classes.
-// Otherwise, stick to your 'satoriCustomCss' which is 100% Satori-compatible.
-// const finalSatoriCss = (useTailwind ? sanitizedTailwind : "") + "\n" + satoriCustomCss;
 
 app.post('/render', async (req, res) => {
     try {
@@ -82,35 +64,32 @@ app.post('/render', async (req, res) => {
         const token = req.headers['x-sidecar-token'];
         if (token !== AUTH_TOKEN) return res.status(403).send('Unauthorized');
 
-        const rawHtml = req.body.html;
+        let rawHtml = req.body.html;
         
-        // 1. Strip and Clean HTML String
+        // 1. Pre-process string
         const satoriHtml = prepareNakedHtml(satoriSystemStrip(rawHtml));
         
-        // 2. Convert to VNode
+        // 2. Build VNode
         let vNode = toVNode(satoriHtml);
         
-        // 3. Deep Clean VNode (The most important step)
+        // 3. Deep Clean
         vNode = deepCleanVNode(vNode);
 
-        // 4. Generate SVG
+        // 4. Satori Render
         const svg = await satori(vNode, { 
             width: 1200, 
-            height: 1080, 
+            height: 1600, // Increased height to ensure charts aren't cut off
             fonts: [{ name: 'arial', data: fontData, weight: 400 }],
-            css: finalSatoriCss,
+            css: satoriCustomCss,
         });
 
-        // 5. Render PNG (No manual regex on the SVG string here!)
         const resvg = new Resvg(svg, {
             background: '#ffffff',
             fitTo: { mode: 'width', value: 1200 }
         });
         
-        const pngBuffer = resvg.render().asPng();
-
         res.setHeader('Content-Type', 'image/png');
-        res.send(pngBuffer);
+        res.send(resvg.render().asPng());
     } catch (err) {
         console.error("Render Error:", err.message);
         res.status(500).send(err.message);
@@ -119,37 +98,53 @@ app.post('/render', async (req, res) => {
 
 function deepCleanVNode(node) {
     if (!node || typeof node !== 'object') return node;
-
-    if (Array.isArray(node)) {
-        return node.map(deepCleanVNode);
-    }
+    if (Array.isArray(node)) return node.map(deepCleanVNode);
 
     if (node.props) {
-        const s = node.props.style || {};
+        node.props.style = node.props.style || {};
+        const s = node.props.style;
+        const classes = String(node.props.className || node.props.class || "");
 
-        // Fix zIndex (Check both casing types)
-        ['zIndex', 'z-index'].forEach(key => {
-            if (s[key] !== undefined) {
-                const val = String(s[key]).replace(/[^0-9-]/g, '');
-                s.zIndex = val ? parseInt(val, 10) : 0;
-                if (key === 'z-index') delete s[key]; // Normalize to camelCase
+        // --- STABILIZATION BLOCK: This stops the resvg panic ---
+        const numericProps = ['width', 'height', 'fontSize', 'lineHeight', 'borderWidth', 'gap'];
+        numericProps.forEach(prop => {
+            if (s[prop] !== undefined) {
+                // Strip everything except numbers and decimals
+                const val = parseFloat(String(s[prop]).replace(/[^-0-9.]/g, ''));
+                if (!isNaN(val) && val > 0) {
+                    s[prop] = val; // Force to raw NUMBER (no "px")
+                } else if (typeof s[prop] === 'string' && s[prop].includes('%')) {
+                    // Percentages are okay as strings
+                } else {
+                    delete s[prop]; // Remove 0, NaN, or invalid strings to prevent crash
+                }
             }
         });
 
-        // The "Panic Killer": Ensure no 0-dimensions on flex items
-        if (s.display !== 'none') {
-            s.display = 'flex';
-            if (!s.flexDirection) s.flexDirection = 'column';
-            // Resvg crashes on 0 height/width boxes with borders
-            if (s.borderWidth || s.border) {
-                s.minWidth = s.minWidth || 1;
-                s.minHeight = s.minHeight || 1;
-            }
+        // --- LAYOUT ENFORCEMENT ---
+        s.display = 'flex'; // Satori requirement
+
+        if (classes.includes('chart-grid')) {
+            s.width = 340;
+            s.height = 340;
+            s.flexDirection = 'row';
+            s.flexWrap = 'wrap';
+            s.alignContent = 'flex-start'; 
         }
 
-        // Nuclear removal of classes to prevent Satori from re-parsing them
-        if (node.props.className) delete node.props.className;
-        if (node.props.class) delete node.props.class;
+        if (classes.includes('house-box')) {
+            s.width = 85;
+            s.height = 85;
+            s.flexShrink = 0; // Ensures the square doesn't collapse to 0 width
+            s.flexDirection = 'column';
+            s.alignItems = 'center';
+            s.justifyContent = 'center';
+        }
+
+        // Table Row Horizontal Fix
+        if (node.type === 'tr' || classes.includes('flex-row')) {
+            s.flexDirection = 'row';
+        }
 
         if (node.props.children) {
             node.props.children = deepCleanVNode(node.props.children);
@@ -159,22 +154,29 @@ function deepCleanVNode(node) {
 }
 
 function satoriSystemStrip(html) {
+    if (!html) return '';
     return html
         .replace(/<(script|style)\b[^>]*>([\s\S]*?)<\/\1>/gi, '')
-        .replace(/!important/g, '')
-        .replace(/position:\s*fixed/gi, 'position: absolute');
+        // Clean loading artifacts seen in image_978361.png and others
+        .replace(/Emailing Your horoscope\.\.\./gi, '')
+        .replace(/,\s*Please wait\./gi, '')
+        .replace(/Sending Email/gi, '')
+        .replace(/Print \/ Export Image/gi, '')
+        .replace(/Done/gi, '')
+        .replace(/Chat to get predictions.*/gi, '')
+        .replace(/!important/g, '');
 }
 
 function prepareNakedHtml(html) {
     if (!html) return '';
-
     return html
-        // Catch the 50px unit before it hits the parser
+        // Remove empty containers that might have borders but no size
+        .replace(/<div[^>]*>\s*<\/div>/gi, '')
+        // Bind symbols to prevent line breaks in geometry
+        .replace(/(\d+)\s*°/g, '$1°') 
+        .replace(/(\d+)\s*'/g, "$1'")
+        // Standardize z-index
         .replace(/(z-index|zIndex)\s*:\s*(\d+)px/gi, '$1: $2')
-        .replace(/(font-weight|fontWeight)\s*:\s*(\d+)px/gi, '$1: $2')
-        // Ensure all layout containers are flex
-        .replace(/<(div|section|table|tr|td|th)(?![^>]*style=['"])/gi, '<$1 style="display: flex; flex-direction: column;"')
-        .replace(/style=(['"])/gi, 'style=$1display: flex; flex-direction: column; ')
         .replace(/\s{2,}/g, ' ')
         .trim();
 }
