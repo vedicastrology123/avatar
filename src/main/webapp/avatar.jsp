@@ -739,8 +739,9 @@
     } else {
         System.err.println("Error: TeeResponseWrapper not found in request attributes.");
     }
-    String base64Html = java.util.Base64.getEncoder().encodeToString(capturedHtml.getBytes(StandardCharsets.UTF_8));
-    byte[] imageBytes = processAndRender(capturedHtml);
+    // Java side
+    String json = "{\"html\": \"" + capturedHtml.replace("\"", "\\\"") + "\"}";
+    byte[] imageBytes = processAndRender(json);
     if (email != null && !email.isEmpty()) {
         jyotish.main.SendUserEmail emailer = new jyotish.main.SendUserEmail();
         System.out.println("Email sent out to " + firstName + " using satori twcss");

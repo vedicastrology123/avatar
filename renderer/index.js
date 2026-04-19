@@ -54,9 +54,27 @@ const satoriCustomCss = `
     tr { display: flex; width: 100%; }
     td, th { display: flex; flex: 1; padding: 4px; border: 1px solid #e2e8f0; }
 `;
+const cssPath = join(__dirname, 'css', 'global.css');
+// 1. Read the big Tailwind file
+const rawTailwindCss = fs.readFileSync(cssPath, 'utf8');
+
+// 2. SCRUB IT: Remove the things that make Satori/Resvg panic
+const sanitizedTailwind = rawTailwindCss
+    .replace(/!important/g, '') // Satori hates !important
+    .replace(/(z-index|zIndex)\s*:\s*(\d+)px/gi, '$1: $2') // Fix the 50px bug
+    .replace(/@media\s+print\s*\{[\s\S]*?\}/g, '') // Remove print styles
+    .replace(/column-gap:/g, 'gap:') // Satori prefers 'gap' over specific column-gap
+    .replace(/scroll-behavior:\s*smooth/g, ''); // Useless for images
+
 
 // Pre-clean the CSS string for Satori
 const cleanCss = satoriCustomCss.replace(/(z-index|zIndex)\s*:\s*(\d+)px/gi, '$1: $2');
+
+// 3. MERGE: Combine with your specific Astrology chart overrides
+const finalSatoriCss = sanitizedTailwind + "\n" + satoriCustomCss;
+// Only include the 24KB file if you actually need the utility classes.
+// Otherwise, stick to your 'satoriCustomCss' which is 100% Satori-compatible.
+// const finalSatoriCss = (useTailwind ? sanitizedTailwind : "") + "\n" + satoriCustomCss;
 
 app.post('/render', async (req, res) => {
     try {
@@ -80,7 +98,7 @@ app.post('/render', async (req, res) => {
             width: 1200, 
             height: 1080, 
             fonts: [{ name: 'arial', data: fontData, weight: 400 }],
-            css: cleanCss,
+            css: finalSatoriCss,
         });
 
         // 5. Render PNG (No manual regex on the SVG string here!)
