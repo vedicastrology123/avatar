@@ -620,237 +620,236 @@
             </div>
         </div>
     </div>
-<script>
-    const overlay = document.getElementById('loading-overlay');
-    overlay.style.setProperty('display', 'flex', 'important');
-    overlay.classList.remove('hidden');
-</script>
 
-<script>
-    async function downloadImage() {
-        const proceed = confirm("Would you like to generate and download the horoscope image?");
-        if (!proceed) return;
+    <script>
+        async function downloadImage() {
+            const proceed = confirm("Would you like to generate and download the horoscope image?");
+            if (!proceed) return;
 
-        // Correct check for the cdnjs global object
-        const lib = window.htmlToImage;
-        if (!lib) {
-            alert("The image library hasn't loaded yet. Please wait a moment or refresh.");
-            return;
-        }
+            // Correct check for the cdnjs global object
+            const lib = window.htmlToImage;
+            if (!lib) {
+                alert("The image library hasn't loaded yet. Please wait a moment or refresh.");
+                return;
+            }
 
-        const node = document.getElementById('page-container');
-        const loader = document.getElementById('loading-overlay');
-        
-        try {
-            loader.classList.remove('hidden');
+            const node = document.getElementById('page-container');
+            const loader = document.getElementById('loading-overlay');
+            
+            try {
+                loader.classList.remove('hidden');
 
-            // Capture logic locked to your 1050x1080 dimensions
-            const dataUrl = await lib.toPng(node, {
-                width: 1485,
-                height: 1080,
-                backgroundColor: '#ffffff',
-                pixelRatio: 1, // Forces 1:1 scale to prevent height shrinking
-                filter: (node) => {
-                    // Properly exclude UI elements from the export
-                    if (node.classList && (node.classList.contains('print-ui-only') || node.tagName === 'BUTTON')) {
-                        return false;
+                // Capture logic locked to your 1050x1080 dimensions
+                const dataUrl = await lib.toPng(node, {
+                    width: 1485,
+                    height: 1080,
+                    backgroundColor: '#ffffff',
+                    pixelRatio: 1, // Forces 1:1 scale to prevent height shrinking
+                    filter: (node) => {
+                        // Properly exclude UI elements from the export
+                        if (node.classList && (node.classList.contains('print-ui-only') || node.tagName === 'BUTTON')) {
+                            return false;
+                        }
+                        return true;
                     }
-                    return true;
-                }
-            });
+                });
 
-            const name = "<%= firstName %>";
-            const link = document.createElement('a');
-            link.download = name + '-horoscope.png';
-            link.href = dataUrl;
-            link.click();
+                const name = "<%= firstName %>";
+                const link = document.createElement('a');
+                link.download = name + '-horoscope.png';
+                link.href = dataUrl;
+                link.click();
 
-        } catch (error) {
-            console.error("Capture failed:", error);
-            alert("Capture failed. Error: " + error.message);
-        } finally {
-            loader.classList.add('hidden');
+            } catch (error) {
+                console.error("Capture failed:", error);
+                alert("Capture failed. Error: " + error.message);
+            } finally {
+                loader.classList.add('hidden');
+            }
         }
-    }
-</script>
+    </script>
+    <script>
+        const overlay = document.getElementById('loading-overlay');
+        overlay.style.setProperty('display', 'flex', 'important');
+        overlay.classList.remove('hidden');
+    </script>
+    <%@ page import="java.net.http.HttpClient" %>
+    <%@ page import="java.net.http.HttpRequest" %>
+    <%@ page import="java.net.http.HttpResponse" %>
+    <%@ page import="java.net.URI" %>
+    <%@ page import="com.fasterxml.jackson.databind.ObjectMapper" %> --%>
+    
+    <%!
+        public byte[] processAndRender(String finalHtml) throws Exception {
+            // 2. Wrap in JSON for the Sidecar
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonBody = mapper.writeValueAsString(Map.of("html", finalHtml));
 
-<%@ page import="java.net.http.HttpClient" %>
-<%@ page import="java.net.http.HttpRequest" %>
-<%@ page import="java.net.http.HttpResponse" %>
-<%@ page import="java.net.URI" %>
-<%@ page import="com.fasterxml.jackson.databind.ObjectMapper" %> --%>
- 
-<%!
-    public byte[] processAndRender(String finalHtml) throws Exception {
-        // 2. Wrap in JSON for the Sidecar
-        ObjectMapper mapper = new ObjectMapper();
-        String jsonBody = mapper.writeValueAsString(Map.of("html", finalHtml));
+            // 3. Push to the Local Satori Sidecar
+            // String token = System.getenv("SIDECAR_TOKEN");
+            String token = "ibh7JSXJPdWu4DBq";
+            HttpClient client = HttpClient.newHttpClient();
+            
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://127.0.0.1:3000/render"))
+                .header("Content-Type", "application/json")
+                .header("X-Sidecar-token", token)
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build();
 
-        // 3. Push to the Local Satori Sidecar
-        // String token = System.getenv("SIDECAR_TOKEN");
-        String token = "ibh7JSXJPdWu4DBq";
-        HttpClient client = HttpClient.newHttpClient();
+            byte[] imageBytes = null;
+
+            HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            if (response.statusCode() == 200) {
+                imageBytes = response.body();
+                long expectedSize = response.headers().firstValueAsLong("Content-Length").orElse(-1L);
+                int receivedSize = (imageBytes != null) ? imageBytes.length : 0;
+                    if (receivedSize > 0 && (expectedSize == -1 || receivedSize == expectedSize)) {
+                        System.out.println("✅ Integrity Verified: Received " + receivedSize + " bytes.");
+                        return imageBytes; // Your final Vedic Chart PNG
+                    } else {
+                        System.out.println("❌ Integrity Failed: Expected " + expectedSize + " but got " + receivedSize);
+                    }
+            } else {
+                String errorInfo = new String(response.body());
+                System.out.println("Satori Error: " + response.statusCode() + " - " + errorInfo);
+            }
+            return imageBytes;
+        }
+    %>
+
+    <%
+        out.flush();
+        String success = "";
+        jyotish.main.TeeResponseWrapper wrapperAttr = (jyotish.main.TeeResponseWrapper) request.getAttribute("TeeResponseWrapper");
+
+        String capturedHtml = "";
         
-        HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create("http://127.0.0.1:3000/render"))
-            .header("Content-Type", "application/json")
-            .header("X-Sidecar-token", token)
-            .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-            .build();
+        if (wrapperAttr != null && wrapperAttr instanceof jyotish.main.TeeResponseWrapper) {
+            jyotish.main.TeeResponseWrapper myWrapper = (jyotish.main.TeeResponseWrapper) wrapperAttr;
 
-        byte[] imageBytes = null;
+            capturedHtml = myWrapper.getCapturedHtml().toString().trim();
 
-        HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-        if (response.statusCode() == 200) {
-            imageBytes = response.body();
-            long expectedSize = response.headers().firstValueAsLong("Content-Length").orElse(-1L);
-            int receivedSize = (imageBytes != null) ? imageBytes.length : 0;
-                if (receivedSize > 0 && (expectedSize == -1 || receivedSize == expectedSize)) {
-                    System.out.println("✅ Integrity Verified: Received " + receivedSize + " bytes.");
-                    return imageBytes; // Your final Vedic Chart PNG
-                } else {
-                    System.out.println("❌ Integrity Failed: Expected " + expectedSize + " but got " + receivedSize);
-                }
+            if (capturedHtml != null && !capturedHtml.trim().isEmpty()) {
+                System.out.println("Verified: HTML written to screen block.");
+            } else {
+                out.println("<b>Debug: capturedHtml was NULL at time of rendering.</b>");
+            }
         } else {
-            String errorInfo = new String(response.body());
-            System.out.println("Satori Error: " + response.statusCode() + " - " + errorInfo);
+            System.err.println("Error: TeeResponseWrapper not found in request attributes.");
         }
-        return imageBytes;
-    }
-%>
-
-<%
-    out.flush();
-    String success = "";
-    jyotish.main.TeeResponseWrapper wrapperAttr = (jyotish.main.TeeResponseWrapper) request.getAttribute("TeeResponseWrapper");
-
-    String capturedHtml = "";
-    
-    if (wrapperAttr != null && wrapperAttr instanceof jyotish.main.TeeResponseWrapper) {
-        jyotish.main.TeeResponseWrapper myWrapper = (jyotish.main.TeeResponseWrapper) wrapperAttr;
-
-        capturedHtml = myWrapper.getCapturedHtml().toString().trim();
-
-        if (capturedHtml != null && !capturedHtml.trim().isEmpty()) {
-            System.out.println("Verified: HTML written to screen block.");
-        } else {
-            out.println("<b>Debug: capturedHtml was NULL at time of rendering.</b>");
-        }
-    } else {
-        System.err.println("Error: TeeResponseWrapper not found in request attributes.");
-    }
-    // Java side
-    String json = "{\"html\": \"" + capturedHtml.replace("\"", "\\\"") + "\"}";
-    byte[] imageBytes = processAndRender(json);
-    if (email != null && !email.isEmpty()) {
-        jyotish.main.SendUserEmail emailer = new jyotish.main.SendUserEmail();
-        System.out.println("Email sent out to " + firstName + " using satori twcss");
-        emailer.generateAndEmail(email, imageBytes, firstName, lastName, date, time, city, state, country, questions, residency);
-        success = "Success";
-    }
-    
-    /* WebDriver driver = null;
-    
-    try {
-        WebDriverManager.chromedriver().setup();
-
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--headless=new");
-        options.addArguments("--no-sandbox");
-        options.addArguments("--disable-setuid-sandbox");        
-        options.addArguments("--disable-dev-shm-usage");
-        options.addArguments("--disable-gpu");
-        options.addArguments("--window-size=1920,1080"); 
-        options.addArguments("--force-device-scale-factor=1"); 
-        options.addArguments("--hide-scrollbars");
-        options.addArguments("--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4");
-        options.setBinary("/usr/bin/google-chrome");
-        
-        driver = new ChromeDriver(options);
-        
-        Map<String, Object> metrics = new HashMap<>();
-        metrics.put("width", 1920);
-        metrics.put("height", 1200);
-        metrics.put("deviceScaleFactor", 1);
-        metrics.put("mobile", false); // This prevents the 'shrunken' mobile layout
-        metrics.put("pixelRatio", 1.0);
-        metrics.put("format", "png");
-        metrics.put("fromSurface", true);
-        metrics.put("captureBeyondViewport", true);
-
-        ((ChromeDriver) driver).executeCdpCommand("Emulation.setDeviceMetricsOverride", metrics);
-
-        String base64Html = java.util.Base64.getEncoder().encodeToString(capturedHtml.getBytes(StandardCharsets.UTF_8));
-
-        driver.get("data:text/html;charset=utf-8;base64," + base64Html);                       
-
-        new WebDriverWait(driver, Duration.ofSeconds(5))
-            .until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")));
-  
-        JavascriptExecutor js = (JavascriptExecutor) driver;
-
-        js.executeScript(
-            "var modal = document.getElementById('loading-modal'); if(modal) modal.style.display='none';" +
-            "var overlay = document.getElementById('loading-overlay'); if(overlay) overlay.style.display='none';" +
-            "var ui = document.getElementsByClassName('print-ui-only'); " +
-            "for(var i=0; i<ui.length; i++) { ui[i].style.display='none'; }" + 
-            "var hidden = document.querySelectorAll('.hidden, [class*=\"md:hidden\"]'); for(var i=0; i<hidden.length; i++) hidden[i].remove();"
-        );
-
-        Thread.sleep(1000); 
-
-        WebElement chartElement = driver.findElement(By.tagName("body"));
-        byte[] imageBytes = chartElement.getScreenshotAs(OutputType.BYTES);
-
+        // Java side
+        String json = "{\"html\": \"" + capturedHtml.replace("\"", "\\\"") + "\"}";
+        byte[] imageBytes = processAndRender(json);
         if (email != null && !email.isEmpty()) {
             jyotish.main.SendUserEmail emailer = new jyotish.main.SendUserEmail();
-            System.out.println("Email sent out to " + firstName);
+            System.out.println("Email sent out to " + firstName + " using satori twcss");
             emailer.generateAndEmail(email, imageBytes, firstName, lastName, date, time, city, state, country, questions, residency);
             success = "Success";
         }
-    } catch (Exception e) {
-        System.out.println("bytes not there ..." + e.getMessage());
-    } finally {
-        if (driver != null) {
-            driver.quit();
-        }
-    }*/
-%>
-
-<script>
-    var successJs = "<%= success %>";
-    // Assume JSP sets a hidden input or session attribute
-    if(successJs === "Success") {
-
-        const overlay = document.getElementById('loading-overlay');
-        if (overlay) {
-            overlay.classList.add('hidden');
-            overlay.classList.toggle('hidden');
-        }
-
-        const modal = document.getElementById('loading-modal');
-        if (modal) {
-            modal.style.setProperty('display', 'flex', 'important');
-            modal.classList.remove('hidden');
-        }
-
-        const btn = document.getElementById('ok-btn');
-        const head = document.getElementById('ok-head');
-        const msg = document.getElementById('ok-msg');
-        const spinner = document.getElementById('modal-spinner');
-
-        if (btn) {
-            if (spinner) spinner.style.display = 'none';
-            head.innerText = "Check your email.";
-            msg.innerText = "Chat to get predictions.";
         
-            btn.style.setProperty('display', 'block', 'important');
-            btn.onclick = function() {
-                document.getElementById('loading-overlay').style.display = 'none';
-                document.getElementById('loading-modal').style.display = 'none';
-            };
+        /* WebDriver driver = null;
+        
+        try {
+            WebDriverManager.chromedriver().setup();
+
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments("--headless=new");
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-setuid-sandbox");        
+            options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--disable-gpu");
+            options.addArguments("--window-size=1920,1080"); 
+            options.addArguments("--force-device-scale-factor=1"); 
+            options.addArguments("--hide-scrollbars");
+            options.addArguments("--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4");
+            options.setBinary("/usr/bin/google-chrome");
+            
+            driver = new ChromeDriver(options);
+            
+            Map<String, Object> metrics = new HashMap<>();
+            metrics.put("width", 1920);
+            metrics.put("height", 1200);
+            metrics.put("deviceScaleFactor", 1);
+            metrics.put("mobile", false); // This prevents the 'shrunken' mobile layout
+            metrics.put("pixelRatio", 1.0);
+            metrics.put("format", "png");
+            metrics.put("fromSurface", true);
+            metrics.put("captureBeyondViewport", true);
+
+            ((ChromeDriver) driver).executeCdpCommand("Emulation.setDeviceMetricsOverride", metrics);
+
+            String base64Html = java.util.Base64.getEncoder().encodeToString(capturedHtml.getBytes(StandardCharsets.UTF_8));
+
+            driver.get("data:text/html;charset=utf-8;base64," + base64Html);                       
+
+            new WebDriverWait(driver, Duration.ofSeconds(5))
+                .until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")));
+    
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+
+            js.executeScript(
+                "var modal = document.getElementById('loading-modal'); if(modal) modal.style.display='none';" +
+                "var overlay = document.getElementById('loading-overlay'); if(overlay) overlay.style.display='none';" +
+                "var ui = document.getElementsByClassName('print-ui-only'); " +
+                "for(var i=0; i<ui.length; i++) { ui[i].style.display='none'; }" + 
+                "var hidden = document.querySelectorAll('.hidden, [class*=\"md:hidden\"]'); for(var i=0; i<hidden.length; i++) hidden[i].remove();"
+            );
+
+            Thread.sleep(1000); 
+
+            WebElement chartElement = driver.findElement(By.tagName("body"));
+            byte[] imageBytes = chartElement.getScreenshotAs(OutputType.BYTES);
+
+            if (email != null && !email.isEmpty()) {
+                jyotish.main.SendUserEmail emailer = new jyotish.main.SendUserEmail();
+                System.out.println("Email sent out to " + firstName);
+                emailer.generateAndEmail(email, imageBytes, firstName, lastName, date, time, city, state, country, questions, residency);
+                success = "Success";
+            }
+        } catch (Exception e) {
+            System.out.println("bytes not there ..." + e.getMessage());
+        } finally {
+            if (driver != null) {
+                driver.quit();
+            }
+        }*/
+    %>
+
+    <script>
+        var successJs = "<%= success %>";
+        // Assume JSP sets a hidden input or session attribute
+        if(successJs === "Success") {
+
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {
+                overlay.classList.add('hidden');
+                overlay.classList.toggle('hidden');
+            }
+
+            const modal = document.getElementById('loading-modal');
+            if (modal) {
+                modal.style.setProperty('display', 'flex', 'important');
+                modal.classList.remove('hidden');
+            }
+
+            const btn = document.getElementById('ok-btn');
+            const head = document.getElementById('ok-head');
+            const msg = document.getElementById('ok-msg');
+            const spinner = document.getElementById('modal-spinner');
+
+            if (btn) {
+                if (spinner) spinner.style.display = 'none';
+                head.innerText = "Check your email.";
+                msg.innerText = "Chat to get predictions.";
+            
+                btn.style.setProperty('display', 'block', 'important');
+                btn.onclick = function() {
+                    document.getElementById('loading-overlay').style.display = 'none';
+                    document.getElementById('loading-modal').style.display = 'none';
+                };
+            }
         }
-    }
-</script>
+    </script>
 </body>
 </html>
