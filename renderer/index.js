@@ -1,6 +1,9 @@
 import fs from 'fs';
 import { html as toVNode } from 'satori-html';
 import satori from 'satori';
+import path from 'path';
+import os from 'os';
+
 import { Resvg } from '@resvg/resvg-js';
 import express from 'express';
 import { fileURLToPath } from 'url';
@@ -8,6 +11,13 @@ import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+
+// const markup = html`
+//   <div tw="flex flex-col w-full h-full bg-blue-500 text-white items-center justify-center">
+//     <h1 tw="text-5xl font-bold">Hello World</h1>
+//   </div>
+// `;
 
 const app = express();
 app.use(express.json({ limit: '5mb' }));
@@ -46,17 +56,30 @@ const satoriCustomCss = `
     td, th { display: flex; flex: 1; padding: 4px; }
 `;
 
-const cssPath = join(__dirname, 'css', 'global.css');
-const rawTailwindCss = fs.readFileSync(cssPath, 'utf8');
+// const cssPath = join(__dirname, 'css', 'global.css');
+// const rawTailwindCss = fs.readFileSync(cssPath, 'utf8');
 
-const sanitizedTailwind = rawTailwindCss
-    .replace(/!important/g, '')
-    .replace(/(z-index|zIndex)\s*:\s*(\d+)px/gi, '$1: $2')
-    .replace(/@media\s+print\s*\{[\s\S]*?\}/g, '')
-    .replace(/column-gap:/g, 'gap:')
-    .replace(/scroll-behavior:\s*smooth/g, '');
+// const sanitizedTailwind = rawTailwindCss
+//     .replace(/!important/g, '')
+//     .replace(/(z-index|zIndex)\s*:\s*(\d+)px/gi, '$1: $2')
+//     .replace(/@media\s+print\s*\{[\s\S]*?\}/g, '')
+//     .replace(/column-gap:/g, 'gap:')
+//     .replace(/scroll-behavior:\s*smooth/g, '');
 
-const finalSatoriCss = sanitizedTailwind + "\n" + satoriCustomCss;
+// const finalSatoriCss = sanitizedTailwind + "\n" + satoriCustomCss;
+
+app.get('/view-debug', (req, res) => {
+    // let rawViewHtml = req.body.html;
+
+    const debugPath = path.join(process.cwd(), 'debug.html');
+
+    if (fs.existsSync(debugPath)) {
+        res.setHeader('Content-Type', 'text/html');
+        res.sendFile(debugPath);
+    } else {
+        res.status(404).send("Debug file not found yet. Run /render first.");
+    }
+});
 
 app.post('/render', async (req, res) => {
     try {
@@ -66,26 +89,38 @@ app.post('/render', async (req, res) => {
 
         let rawHtml = req.body.html;
         
+        const bodyMatch = rawHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+        const contentToParse = bodyMatch ? bodyMatch[1] : rawHtml;
+
         // 1. Pre-process string
-        const satoriHtml = prepareNakedHtml(satoriSystemStrip(rawHtml));
+        const nakedHtml = prepareNakedHtml(contentToParse);
+
+        const absolutePath = path.join(process.cwd(), 'debug.html');
+        console.log("Path " +  absolutePath);
+        fs.writeFileSync(absolutePath, '<meta charset="UTF-8">' + nakedHtml); 
+
+
+
+        // const satoriHtml = satoriSystemStrip(nakedHtml);
         
         // 2. Build VNode
-        let vNode = toVNode(satoriHtml);
+        let vNode = toVNode(nakedHtml);
         
         // 3. Deep Clean
-        vNode = deepCleanVNode(vNode);
+        // vNode = deepCleanVNode(vNode);
 
         // 4. Satori Render
         const svg = await satori(vNode, { 
             width: 1200, 
             height: 1600, // Increased height to ensure charts aren't cut off
             fonts: [{ name: 'arial', data: fontData, weight: 400 }],
-            css: satoriCustomCss,
+            // css: satoriCustomCss,
+            style: 'normal',
         });
 
         const resvg = new Resvg(svg, {
-            background: '#ffffff',
-            fitTo: { mode: 'width', value: 1200 }
+            background: 'rgba(255, 255, 255, 0)',
+            fitTo: { mode: 'width', value: 1200 },
         });
         
         res.setHeader('Content-Type', 'image/png');
@@ -95,6 +130,60 @@ app.post('/render', async (req, res) => {
         res.status(500).send(err.message);
     }
 });
+
+function satoriSystemStrip(html) {
+    if (!html) return '';
+    return html
+        // Remove empty containers that might have borders but no size
+        .replace(/<div[^>]*>\s*<\/div>/gi, '')
+        // Bind symbols to prevent line breaks in geometry
+        .replace(/(\d+)\s*°/g, '$1°') 
+        .replace(/(\d+)\s*'/g, "$1'")
+        // Standardize z-index
+        .replace(/(z-index|zIndex)\s*:\s*(\d+)px/gi, '$1: $2')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
+
+function prepareNakedHtml(html) {
+
+    const bulletPattern = String.fromCharCode(226, 8364, 162);
+
+    if (!html) return '';
+    return html
+        // .replace(/<(script|style)\b[^>]*>([\s\S]*?)<\/\1>/gi, '')
+        .replace(/<button[\s\S]*?<\/button>/gi, '')
+        .replace(/^\{"html":\s*"/, '')
+        .replace(/"\}$/, '')
+
+        
+   .replace(/(\d+)o(\d+)/g, '$1°$2') // Fixes degree o
+    .replace(/â€¢/g, ' • ')           // Fixes bullet
+    .replace(/â†‘/g, ' Rise: ')       // Fixes up arrow
+    .replace(/â†“/g, ' Set: ')         // Fixes down arrow
+    .replace(/\\"/g, '"')        
+
+
+// .replace(/(\d+)o(\d+)/g, '$1°$2')
+// .replace(/[^\x00-\x7F]+/g, ' • ')
+        // .replace(/â†‘/g, '&#8593;')  // Up Arrow (↑)
+        // .replace(/â†“/g, '&#8595;')  // Down Arrow (↓)
+        // .replace(/\\"/g, '"')
+    //     .replace(/[^\x00-\x7F]/g, (char) => {
+    //     if (char === '°' || char === '•') return char; // Keep what we just fixed
+    //     return ' '; // Turn everything else (the junk) into a space
+    // })
+        .replace(/Emailing Your horoscope\.\.\./gi, '')
+        .replace(/,\s*Please wait\./gi, '')
+        .replace(/Sending Email/gi, '')
+        .replace(/Print \/ Export Image/gi, '')
+        .replace(/Done/gi, '')
+        .replace(/Chat to get predictions.*/gi, '')
+        .replace(/<\/?(html|head|body)[^>]*>/gi, '')
+        .replace(/<!DOCTYPE[^>]*>/gi, '')
+        .replace(/<\/?(html|head|meta|title|link|script)[^>]*>([\s\S]*?<\/(html|head|meta|title|link|script)>)?/gi, '')
+        .trim();
+}
 
 function deepCleanVNode(node) {
     if (!node || typeof node !== 'object') return node;
@@ -151,34 +240,6 @@ function deepCleanVNode(node) {
         }
     }
     return node;
-}
-
-function satoriSystemStrip(html) {
-    if (!html) return '';
-    return html
-        .replace(/<(script|style)\b[^>]*>([\s\S]*?)<\/\1>/gi, '')
-        // Clean loading artifacts seen in image_978361.png and others
-        .replace(/Emailing Your horoscope\.\.\./gi, '')
-        .replace(/,\s*Please wait\./gi, '')
-        .replace(/Sending Email/gi, '')
-        .replace(/Print \/ Export Image/gi, '')
-        .replace(/Done/gi, '')
-        .replace(/Chat to get predictions.*/gi, '')
-        .replace(/!important/g, '');
-}
-
-function prepareNakedHtml(html) {
-    if (!html) return '';
-    return html
-        // Remove empty containers that might have borders but no size
-        .replace(/<div[^>]*>\s*<\/div>/gi, '')
-        // Bind symbols to prevent line breaks in geometry
-        .replace(/(\d+)\s*°/g, '$1°') 
-        .replace(/(\d+)\s*'/g, "$1'")
-        // Standardize z-index
-        .replace(/(z-index|zIndex)\s*:\s*(\d+)px/gi, '$1: $2')
-        .replace(/\s{2,}/g, ' ')
-        .trim();
 }
 
 app.listen(3000, '0.0.0.0', () => console.log('Satori Sidecar Ready'));

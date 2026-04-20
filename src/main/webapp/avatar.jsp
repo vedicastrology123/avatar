@@ -427,7 +427,6 @@
 </style>
 </head>
 <body class="bg-slate-100 p-4">
-    <!-- Loading Overlay -->
     <div id="loading-overlay" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex flex-col backdrop-blur-md items-center justify-center text-white">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white mb-4"></div>
         <p class="text-xl font-semibold">Emailing Your horoscope..., Please wait.</p>
@@ -447,15 +446,14 @@
             </div>
         </div>
     </div>    
-    <%-- PAGE 1: Main Birth Details, Panchang, and Charts --%>
     <div id="page-container" class="page-container">       
-        <%-- HEADER: Fixed height prevents layout collapse during capture --%>
+
         <div class="border-b-2 border-slate-900 pb-16 mt-8 flex justify-between items-end h-28">
             <div id="birth-header-info" class="flex flex-col justify-end">
                 <h1 class="text-2xl font-black camelcase tracking-[0.3em] text-slate-700 leading-none">
                     <%= birthdata.getFirstName() %> <%= birthdata.getLastName() %>
                 </h1>
-                <%-- Reserved space for the link so the header height doesn't change --%>
+
                 <div class="h-10">
                     <a href="https://stevehora.com" class="print-ui-only text-[15px] font-bold text-indigo-600 camelcase tracking-widest hover:text-indigo-800">
                         stevehora.com
@@ -465,7 +463,6 @@
             
             <div class="flex items-center gap-4 mb-1">
                 <span class="text-[15px] font-bold text-slate-400 camelcase tracking-widest text-right"></span>
-                <%-- Reserved space for the button --%>
                 <div class="h-10">
                     <button onclick="downloadImage()" 
                             class="print-ui-only bg-sky-600 text-white camelcase tracking-widest h-12 rounded-md px-4 py-2 hover:bg-slate-700 transition-colors font-bold shadow-lg flex items-center justify-center mx-auto">
@@ -475,13 +472,10 @@
             </div>
         </div>
 
-        <%-- TOP SECTION --%>
         <div class="flex flex-row gap-12 items-start pb-6 pt-6">
             
-            <%-- LEFT COLUMN: Birth Details + Panchang --%>
             <div class="flex-1 space-y-3">
                 
-                <%-- Box 1: Location & Birth Info --%>
                 <div class="bg-slate-50 p-4 rounded border border-slate-200 shadow-sm text-xs">
                     <div class="space-y-1">
                         <p><span class="font-bold text-slate-700 text-[15px] w-12 inline-block">Born:</span> <span class="text-[15px] text-slate-700"><%= birthdata.getBirthDate() %>-<%= new java.text.DateFormatSymbols().getShortMonths()[birthdata.getBirthMonth()-1] %>-<%= birthdata.getBirthYear() %></span></p>
@@ -493,7 +487,6 @@
                     </div>
                 </div>
 
-                <%-- Panchang Grid --%>
                 <div class="grid grid-cols-2 gap-2">
                     <div class="bg-white p-3 rounded border border-slate-200 shadow-sm flex flex-col">
                         <span class="text-slate-500 text-[15px] font-bold camelcase tracking-wider">Nakshatra</span>
@@ -527,11 +520,9 @@
                 </div>
             </div>
 
-            <%-- RIGHT COLUMN: Graha Table --%>
             <div class="w-[500px] flex-none">
                 <table class="shadow-sm border border-slate-200 w-full text-[15px] bg-white rounded overflow-hidden">
                     <thead>
-                        <%-- Explicit styles added here to reinforce print visibility --%>
                         <tr class="bg-slate-900 text-white" style="background-color: #0f172a !important; color: white !important;">
                             <th class="p-2 text-left camelcase tracking-wider">Graha</th>
                             <th class="p-2 text-left camelcase tracking-wider">Longitude</th>
@@ -677,7 +668,7 @@
     <%@ page import="java.net.http.HttpRequest" %>
     <%@ page import="java.net.http.HttpResponse" %>
     <%@ page import="java.net.URI" %>
-    <%@ page import="com.fasterxml.jackson.databind.ObjectMapper" %> --%>
+    <%@ page import="com.fasterxml.jackson.databind.ObjectMapper" %>
     
     <%!
         public byte[] processAndRender(String finalHtml) throws Exception {
